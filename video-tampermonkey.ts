@@ -82,6 +82,24 @@
         });
     }
 
+    function waitFor(selector: string) {
+
+        return new Promise((res, rej) => {
+            waitForElementToDisplay(selector, 500);
+
+            function waitForElementToDisplay(selector: string, time: number) {
+                if (document.querySelector(selector) != null) {
+                    res(document.querySelector(selector));
+                }
+                else {
+                    setTimeout(function () {
+                        waitForElementToDisplay(selector, time);
+                    }, time);
+                }
+            }
+        });
+    }
+
     function initializeVideoElements() {
         var standardPlaybackRate = 1.7;
         var adPlaybackRate = 100;
@@ -129,8 +147,12 @@
 
         console.log('Video elements initialized', document.querySelectorAll('video').length);
 
-        setTimeout(        addSpeedLabel, 3500);
-        setTimeout(        registerWheelListener, 3500);
+        console.log('wait for ', videoType.videoSelector);
+        waitFor(videoType.videoSelector).then(rsp => {
+            console.log('waitFor succeeded');
+            addSpeedLabel();
+            registerWheelListener();
+        });
     }
     // Your code here...
     console.log('Hulu page loaded');
@@ -149,4 +171,6 @@
         }));
     }, 3000);
 
+
 })();
+

@@ -7,14 +7,9 @@
 // @match        https://www.brainscape.com/decks/6134596/review
 // @grant        none
 // ==/UserScript==
-
-declare let $: any;
-
-(function() {
+(function () {
     'use strict';
-
     // Your code here...
-    $("img.img-thumbnail").each((i, e) => { $(e).attr('src', $(e).attr('src').replace('image_thumb', 'image_original')); });
-
+    $("img.img-thumbnail").each(function (i, e) { $(e).attr('src', $(e).attr('src').replace('image_thumb', 'image_original')); });
     $("table.card-review thead tr th:nth-child(2)").css("width", "70%");
 })();

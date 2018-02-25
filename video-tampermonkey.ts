@@ -8,19 +8,19 @@
 // @grant        none
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
-    
-    let videoTypes: { name: string, videoSelector: string }[] = [
+
+    let videoTypes: { name: string, videoSelector: string, videoElementId?: string }[] = [
         { name: 'Hulu', videoSelector: '.content-player' },
         { name: 'Amazon', videoSelector: '.webPlayerContainer' },
         { name: 'Netflix', videoSelector: '.VideoContainer' },
-        { name: 'Pluralsight', videoSelector: '#video-container' }
+        { name: 'Pluralsight', videoSelector: '#video-container' },
+        { name: 'Coursera', videoSelector: '.video-container', videoElementId: 'c-video_html5_api' }
     ];
 
     let videoType: { name: string, videoSelector: string } = null;
     videoTypes.forEach(vt => {
-        console.log('jb', location.href, location, location.hostname);
         if (location.hostname.indexOf(vt.name.toLowerCase()) > 0)
             videoType = vt;
     });
@@ -38,8 +38,7 @@
         if (document.querySelector(videoType.videoSelector))
             (<any>document.querySelector(videoType.videoSelector)).prepend(speedLabel);
         else
-            console.log('.VideoContainer not found');
-
+            console.error('.VideoContainer not found');
     }
 
     function updateSpeed(v, newSpeed) {
@@ -48,32 +47,26 @@
         document.getElementById("playbackSpeed").textContent = 'Speed is ' + v.playbackRate;
 
         console.log('Playback speed updated to ', v.playbackRate);
-
     }
 
     console.log('registering wheel listener');
     function registerWheelListener() {
-        document.addEventListener('wheel', function(e) {
-            if (e.ctrlKey)
-            {
+        document.addEventListener("wheel", function (e) {
+            if (e.ctrlKey) {
                 var changeRate = 0.1;
 
                 if (e.deltaY > 0)
                     changeRate = -0.1;
 
-                let nodes = Array.prototype.slice.call(document.querySelectorAll('video'),0);
+                let nodes = Array.prototype.slice.call(document.querySelectorAll('video'), 0);
                 nodes.forEach(function (v, i) {
-                    console.log('in video qsa', i);
                     var newPlaybackRate = (v.playbackRate + changeRate).toFixed(1);
 
-                    if (true)//(i == 1)
+                    if (true)// (i == 1)
                     {
                         updateSpeed(v, newPlaybackRate);
                     }
                 });
-
-                // Go to full screen
-                // $('.full-screen-button').click();
 
                 e.preventDefault();
                 e.stopPropagation();
@@ -83,9 +76,8 @@
     }
 
     function waitFor(selector: string) {
-
         return new Promise((res, rej) => {
-            waitForElementToDisplay(selector, 500);
+            waitForElementToDisplay(selector, 200);
 
             function waitForElementToDisplay(selector: string, time: number) {
                 if (document.querySelector(selector) != null) {
@@ -103,74 +95,74 @@
     function initializeVideoElements() {
         var standardPlaybackRate = 1.7;
         var adPlaybackRate = 100;
+        console.log('video element found: ', document.querySelectorAll("video"));
 
-        let nodes = Array.prototype.slice.call(document.querySelectorAll('video'),0);
+        waitFor("video").then(rsp => {
+            console.log('video element found');
 
-        nodes.forEach(function (v, i) {
-            console.log('video frame found ', i, v);
-            v.onloadeddata = function() {
-                console.log("Browser has loaded the current frame", i, v, v.duration);
+            let nodes = Array.prototype.slice.call(document.querySelectorAll("video"), 0);
 
-                if (v.id.indexOf('content') == 0)
-                {
-//                    v.playbackRate = standardPlaybackRate;
-                    updateSpeed(v, standardPlaybackRate);
+            nodes.forEach(function (v, i) {
+                console.log("video frame found ", i, v);
+                v.onloadeddata = function () {
+                    console.log("Browser has loaded the current frame", i, v, v.duration);
 
-                }
-                else if (v.id.indexOf('ad') == 0 || v.id.indexOf('intro') == 0) {
-                    console.log('duration', v.duration, v.readyState, v.currentTime);
-                    var minutes = parseInt(<any>(v.duration / 60), 10);
-                    var seconds = v.duration % 60;
+                    if (v.id.indexOf("content") == 0) {
+                        updateSpeed(v, standardPlaybackRate);
+                    }
+                    else if (v.id.indexOf("ad") == 0 || v.id.indexOf("intro") == 0) {
+                        var minutes = parseInt(<any>(v.duration / 60), 10);
+                        var seconds = v.duration % 60;
 
-                    setTimeout(function() {
-                        console.log('setting position to ', v.duration - 5.0);
-                        v.currentTime = v.duration - 5.0;
-                        //v.playbackRate = adPlaybackRate;
-                        updateSpeed(v, adPlaybackRate);
+                        setTimeout(function () {
+                            console.log("setting position to ", v.duration - 5.0);
+                            v.currentTime = v.duration - 5.0;
+                            updateSpeed(v, adPlaybackRate);
+                        }, 500);
 
-                        console.log('currentTime', v.currentTime);
-                    }, 500);
+                        (<any>document.querySelector(".ad-container")).style = "display: none";
+                    }
+                    else if (v.id === videoType.videoElementId)
+                    {
+                        console.log('Matched video type element');
+                        updateSpeed(v, standardPlaybackRate);
+                    }
+                    else
+                        console.error("Video id not matched", v.id);
 
-                    //updateSpeed(adPlaybackRate);
-                    (<any>document.querySelector('.ad-container')).style = "display: none";
-                }
-                else
-                    console.log('Video id not matched', v.id);
+                    console.log("Playback rate set to ", v.playbackRate);
+                };
 
-                console.log('Playback rate set to ', v.playbackRate);
-            };
+                v.onloadedmetadata = function (m) {
+                    console.log("loaded metadata ", m);
+                };
+            });
 
-            v.onloadedmetadata = function(m) {
-                console.log('loaded metadata ', m);
-            };
+            console.log("Video elements initialized", document.querySelectorAll("video").length);
+
         });
 
-        console.log('Video elements initialized', document.querySelectorAll('video').length);
-
-        console.log('wait for ', videoType.videoSelector);
+        console.log("wait for ", videoType.videoSelector);
         waitFor(videoType.videoSelector).then(rsp => {
-            console.log('waitFor succeeded');
+            console.log("waitFor succeeded for videoselector", videoType.videoSelector);
             addSpeedLabel();
             registerWheelListener();
         });
     }
-    // Your code here...
-    console.log('Hulu page loaded');
+    // your code here...
+    console.log("Video page loaded");
 
-    setTimeout(initializeVideoElements, 1500);
+    initializeVideoElements();
 
-    setTimeout(function() {
-        let nodes = Array.prototype.slice.call(document.querySelectorAll('.smartstart-thumb'),0);
-        
-        console.log(nodes.length, ' thumbnails found');
+    setTimeout(function () {
+        let nodes = Array.prototype.slice.call(document.querySelectorAll(".smartstart-thumb"), 0);
 
-        nodes.forEach(tu => tu.addEventListener('click', function(t) {
-            console.log('Thumbnail clicked');
+        console.log(nodes.length, " thumbnails found");
+
+        nodes.forEach(tu => tu.addEventListener("click", function (t) {
+            console.log("Thumbnail clicked");
 
             setTimeout(initializeVideoElements, 1500);
         }));
     }, 3000);
-
-
 })();
-

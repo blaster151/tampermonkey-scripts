@@ -5,18 +5,28 @@
 // @description  try to take over the world!
 // @author       You
 // @match        https://www.hulu.com/
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect localhost
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    let videoTypes: { name: string, videoSelector: string, videoElementId?: string }[] = [
-        { name: 'Hulu', videoSelector: '.content-player' },
-        { name: 'Amazon', videoSelector: '.webPlayerContainer' },
-        { name: 'Netflix', videoSelector: '.VideoContainer' },
-        { name: 'Pluralsight', videoSelector: '#video-container' },
-        { name: 'Coursera', videoSelector: '.video-container', videoElementId: 'c-video_html5_api' }
+    GM_xmlhttpRequest({
+        method: "GET",
+        url: "http://localhost:3000/files",
+        onload: function(response) {
+          console.log(response.responseText);
+        }
+      });
+
+    let videoTypes: { name: string, videoSelector: string, videoElementId?: string, color: string }[] = [
+        { name: 'Hulu', videoSelector: '.content-player', color: 'white' },
+        { name: 'Amazon', videoSelector: '.webPlayerContainer', color: 'white' },
+        { name: 'Netflix', videoSelector: '.VideoContainer', color: 'white' },
+        { name: 'Pluralsight', videoSelector: '#video-container', color: 'white' },
+        { name: 'Youtube', videoSelector: '.html5-video-container', color: 'black' },
+        { name: 'Coursera', videoSelector: '.video-container', videoElementId: 'c-video_html5_api', color: 'black' }
     ];
 
     let videoType: { name: string, videoSelector: string } = null;
@@ -30,8 +40,8 @@
     function addSpeedLabel() {
         var speedLabel = document.createElement('div');
         speedLabel.id = 'playbackSpeed';
-        (<any>speedLabel).style = 'position: absolute; top: 5px; left: 5px; z-index: 999; background: transparent; color: white; height: 20px; width: 100px;';
-        speedLabel.textContent = 'Hi';
+        (<any>speedLabel).style = 'position: absolute; top: 5px; left: 5px; z-index: 999; background: transparent; color: ' + videoType.color + '; height: 20px; width: 100px;';
+        speedLabel.textContent = 'Loading';
 
         // $("<div id='playbackSpeed' style='position: absolute; top: 5px; left: 5px; z-index: 999; background: transparent; color: white; height: 20px; width: 100px;'>Hi</div>");
         // document.querySelector("body").prepend(speedLabel);
@@ -92,6 +102,7 @@
         });
     }
 
+    var lastPlaybackRate = 0.0;
     function initializeVideoElements() {
         var standardPlaybackRate = 1.7;
         var adPlaybackRate = 100;
@@ -108,6 +119,10 @@
                     console.log("Browser has loaded the current frame", i, v, v.duration);
 
                     if (v.id.indexOf("content") == 0) {
+                        updateSpeed(v, standardPlaybackRate);
+                    }
+                    else if (v.classList.contains("html5-main-video")) {
+                        console.log('youtube video detected by class');
                         updateSpeed(v, standardPlaybackRate);
                     }
                     else if (v.id.indexOf("ad") == 0 || v.id.indexOf("intro") == 0) {
@@ -130,6 +145,7 @@
                     else
                         console.error("Video id not matched", v.id);
 
+                    lastPlaybackRate = v.playbackRate;
                     console.log("Playback rate set to ", v.playbackRate);
                 };
 

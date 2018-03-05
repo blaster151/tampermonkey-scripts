@@ -14,21 +14,23 @@ declare let GM_xmlhttpRequest: any;
 (function () {
     'use strict';
 
-    GM_xmlhttpRequest({
-        method: "GET",
-        url: "http://localhost:3000/files",
-        onload: function(response) {
-          console.log(response.responseText);
-        }
-      });
-
+    // GM_xmlhttpRequest({
+    //     method: "GET",
+    //     url: "http://localhost:3000/files",
+    //     onload: function(response) {
+    //       console.log(response.responseText);
+    //     }
+    //   });
     let videoTypes: { name: string, videoSelector: string, videoElementId?: string, color: string }[] = [
         { name: 'Hulu', videoSelector: '.content-player', color: 'white' },
         { name: 'Amazon', videoSelector: '.webPlayerContainer', color: 'white' },
         { name: 'Netflix', videoSelector: '.VideoContainer', color: 'white' },
         { name: 'Pluralsight', videoSelector: '#video-container', color: 'white' },
         { name: 'Youtube', videoSelector: '.html5-video-container', color: 'black' },
-        { name: 'Coursera', videoSelector: '.video-container', videoElementId: 'c-video_html5_api', color: 'black' }
+        { name: 'Coursera', videoSelector: '.video-container', videoElementId: 'c-video_html5_api', color: 'black' },
+
+        // iframe problems
+        { name: 'Khan', videoSelector: '.html5-main-video', color: 'black' }
     ];
 
     let videoType: { name: string, videoSelector: string, videoElementId?: string } = null;

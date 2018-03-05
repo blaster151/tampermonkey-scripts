@@ -1,3 +1,5 @@
+declare let GM_xmlhttpRequest: any;
+
 // ==UserScript==
 // @name         New Userscript
 // @namespace    http://tampermonkey.net/
@@ -29,7 +31,7 @@
         { name: 'Coursera', videoSelector: '.video-container', videoElementId: 'c-video_html5_api', color: 'black' }
     ];
 
-    let videoType: { name: string, videoSelector: string } = null;
+    let videoType: { name: string, videoSelector: string, videoElementId?: string } = null;
     videoTypes.forEach(vt => {
         if (location.hostname.indexOf(vt.name.toLowerCase()) > 0)
             videoType = vt;
@@ -40,13 +42,13 @@
     function addSpeedLabel() {
         var speedLabel = document.createElement('div');
         speedLabel.id = 'playbackSpeed';
-        (<any>speedLabel).style = 'position: absolute; top: 5px; left: 5px; z-index: 999; background: transparent; color: ' + videoType.color + '; height: 20px; width: 100px;';
+        (<any>speedLabel).style = 'position: fixed; top: 5px; left: 5px; z-index: 999; background: white; border: 2px solid orange; z-index: 9999999999; color: black; height: 20px; width: 100px; padding-top: 5px; border-radius: 10px; opacity: .75; font-weight: bold; margin-left: 41px;';
         speedLabel.textContent = 'Loading';
 
         // $("<div id='playbackSpeed' style='position: absolute; top: 5px; left: 5px; z-index: 999; background: transparent; color: white; height: 20px; width: 100px;'>Hi</div>");
         // document.querySelector("body").prepend(speedLabel);
         if (document.querySelector(videoType.videoSelector))
-            (<any>document.querySelector(videoType.videoSelector)).prepend(speedLabel);
+            (<any>document.body).prepend(speedLabel);
         else
             console.error('.VideoContainer not found');
     }
@@ -54,7 +56,7 @@
     function updateSpeed(v, newSpeed) {
         v.playbackRate = newSpeed;
 
-        document.getElementById("playbackSpeed").textContent = 'Speed is ' + v.playbackRate;
+        document.getElementById("playbackSpeed").textContent = v.playbackRate + 'x';
 
         console.log('Playback speed updated to ', v.playbackRate);
     }

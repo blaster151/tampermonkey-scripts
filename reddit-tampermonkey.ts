@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         New Userscript
+// @name         Reddit Comment Expander
 // @namespace    http://tampermonkey.net/
 // @version      0.1
 // @description  try to take over the world!
@@ -13,19 +13,19 @@
 ;
 (function () {
     'use strict'
-    console.log('very top of Reddit Comment Expander');
+    log('very top of Reddit Comment Expander');
 
     var speedLabel;
     var commentsRemainingLabel;
 
     let feedScrolls = 10;
-    let feedScrollInterval = 6000;
+    let feedScrollInterval = 4000;
 
     let commentsThreshold = 100;
     let hoursAgoThreshold = 3;
 
     function scrollFeed(feedScrolls) {
-        console.log('at top of scrollFeed');
+        log('at top of scrollFeed');
         let scrollCtr = 0;
         let interval = setInterval(function() {
             window.scrollTo(0,document.body.scrollHeight + 500);
@@ -36,14 +36,14 @@
 
                 if (scrollCtr >= feedScrolls)
                     clearInterval(interval);
-            }, 500);
+            }, 300);
         }, feedScrollInterval);
     }
 
     loadScript(
         'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.js',
         function () {
-            console.log('jQuery loaded; preparing');
+            log('jQuery loaded; preparing');
 
             let isPost = window.location.href.indexOf('/comments/') >= 0;
             let startProcessingPage;
@@ -53,14 +53,14 @@
                 startProcessingPage = feedController;
 
             function commentsPageController() {
-                console.log('Is post');
+                log('Is post');
                 addCommentsRemainingLabel();
 
                 loadMoreComments();
             }
 
             function feedController() {
-                console.log('Is feed');
+                log('Is feed');
                 suppressFluff();
 
                 addFeedPanel();
@@ -80,13 +80,43 @@
             {
                 var closeBtn = $('<div class="btn-close" style="font-size: 8px; position: absolute; bottom: 8%; right: 1%;">Close</div>');
                 closeBtn.click(function(e) { $(el).remove(); e.preventDefault(); return false; });
-                $(el).append(closeBtn);
+                // $(el).append(closeBtn);
+
+                var closeAboveBtn = $('<div class="btn-close" style="font-size: 8px; position: absolute; bottom: 8%; right: 1%;">Close Above</div>');
+                closeAboveBtn.click(function(e) {
+                    var hasReachedClickedElement = false;
+                    $('.scrollerItem').each(function(i, el2) {
+                        if (hasReachedClickedElement)
+                            return;
+
+                        if (el2 == el)
+                        {
+                            hasReachedClickedElement = true;
+                            return;
+                        }
+
+                        $(el2).remove();
+                    });
+                    
+                    e.preventDefault(); return false; }
+                );
+
+                $(el).append(closeAboveBtn);
+
+                var commentsLink = $(el).find("a[data-click-id='comments']");
+                commentsLink.each((i, el) => {
+                    $(el).click(function (el) {
+                        closeAboveBtn.click();
+                    });
+                });
             }
         });
     }
 
     function suppressFluff() {
-        addPostCloseButtons();//Inefficiently processing all previously added posts too
+        setTimeout(() => {
+            addPostCloseButtons(); //Inefficiently processing all previously added posts too
+        }, 250);    // Wait for $
 
         // Make this not remove comments from an article
         $('.scrollerItem')
@@ -121,6 +151,10 @@
                 $(post).remove();
             })
 
+        hideAds();
+    }
+
+    function hideAds() {
         // Remove promoted links
         $('.promotedlink').remove();
 
@@ -144,11 +178,11 @@
             totalCommentsCount += x.commentsCount;
         });
 
-        console.log('total comments remaining', totalCommentsCount);
+        log('total comments remaining', totalCommentsCount);
         commentsRemainingLabel.innerHTML = totalCommentsCount.toString();
 
         matches = matches.filter(function (i, x) {
-            // console.log('in eval', x, $(x).text());
+            // log('in eval', x, $(x).text());
             return $(x).text() != 'loading...';
         });
 
@@ -172,36 +206,51 @@
         var commentsThreshold = 3
 
         var eligibleCommentLinks = getEligibleCommentLinks(commentsThreshold);
-        console.log('eligible comments links', eligibleCommentLinks.length);
+        log('eligible comments links', eligibleCommentLinks.length);
         if (eligibleCommentLinks.length === 0) {
             setTimeout(function () {
                 eligibleCommentLinks = getEligibleCommentLinks(commentsThreshold)
 
                 if (eligibleCommentLinks.length == 0) {
-                    console.log('No more comments detected after 3 seconds');
+                    log('No more comments detected after 3 seconds');
 
                     commentsRemainingLabel.parentNode.removeChild(commentsRemainingLabel);
 
-                    addSpeedLabel();
+                    addViewAll();
                     document.title = '*' + document.title;
 
                     // Hide advertisement sidebar
                     $("div[id|=sidebar]").remove();
                 } else {
-                    console.log('Detected more comments');
+                    log('Detected more comments');
                     loadMoreComments();
                 }
             }, 3000);
         } else {
-            var x = eligibleCommentLinks.first()[0];
+            var firstMoreCommentsLink = eligibleCommentLinks.first()[0];
 
             // First match only
-            console.log('Expanding comments ', x.innerText);
-            x.click();
+            log('Expanding comments ', firstMoreCommentsLink.innerText);
+            //firstMoreCommentsLink.click();
+            clickAndWaitForAjaxCompletion(firstMoreCommentsLink).then(rsp => {
+                log('jcb promise completed ', Object.keys(outstandingRequests).length);
+            });
         }
     }
 
-    function addSpeedLabel() {
+    let nextRequest = null;
+    let outstandingRequests = {};
+    function clickAndWaitForAjaxCompletion(elem: HTMLElement) {
+        return new Promise<any>(
+            (rsp, rej) => {
+                nextRequest = rsp;
+                elem.click();
+            }
+        );
+    }
+
+    // Following two functions are reused in Disqus
+    function addViewAll() {
         speedLabel = document.createElement('button');
         speedLabel.id = 'btnViewAll';
         speedLabel.style = 'position: fixed; top: 5px; left: 5px; z-index: 999; background: white; border: 2px solid orange; z-index: 9999999999; color: black; height: 20px; width: 100px; padding-top: 5px; border-radius: 10px; opacity: .75; font-weight: bold; margin-left: 41px;';
@@ -212,6 +261,29 @@
         });
 
         (<any>document.body).prepend(speedLabel);
+    }
+
+    function scrollToBottom() {
+        // Former implementation
+        // window.scrollTo({ top: 0 }); setInterval(() => { window.scrollBy({top: 500, left: 0 }); }, 100);
+
+        // Modified former implementation
+        var WH = $(window).height()
+        window.scrollTo({
+            top: 0
+        });
+        var scrollIntervalHandle = setInterval(() => {
+            window.scrollBy({
+                top: WH,
+                left: 0
+            });
+
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+                    // you're at the bottom of the page
+                    clearInterval(scrollIntervalHandle);
+                    log('Reached the bottom');
+                }
+        }, 50);
     }
 
     function addCommentsRemainingLabel() {
@@ -259,27 +331,11 @@
         document.getElementsByTagName('head')[0].appendChild(script);
     }
 
-    function scrollToBottom() {
-                // Former implementation
-            // window.scrollTo({ top: 0 }); setInterval(() => { window.scrollBy({top: 500, left: 0 }); }, 100);
 
-            // Modified former implementation
-            var WH = $(window).height()
-            window.scrollTo({
-                top: 0
-            });
-            var scrollIntervalHandle = setInterval(() => {
-                window.scrollBy({
-                    top: WH,
-                    left: 0
-                });
 
-                    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
-                        // you're at the bottom of the page
-                        clearInterval(scrollIntervalHandle);
-                        console.log('Reached the bottom');
-                    }
-            }, 50);
+
+    function log(p1, p2?, p3?) {
+        // console.log(p1, p2, p3);
     }
 
 
@@ -291,17 +347,29 @@
     s_ajaxListener.tempOpen = XMLHttpRequest.prototype.open;
     s_ajaxListener.tempSend = XMLHttpRequest.prototype.send;
     s_ajaxListener.callback = function () {
-        //    console.log('in ajax callback', this.method, this.url, this.data);
+        //    log('in ajax callback', this.method, this.url, this.data);
 
         if (this.method == 'POST' && this.url == 'https://www.reddit.com') {
-            console.log('reddit ajax complete');
+            log('jcb reddit ajax complete', this.url);
 
             setTimeout(function() {
                 suppressFluff();
+
+                log('Trying to hide ads');
+                hideAds();
             }, 50);
+
+            log('jcb ajax response received', this.url);
+            if (outstandingRequests[this.url])
+            {
+                log('   jcb found callback', this.url);
+                outstandingRequests[this.url]();
+                outstandingRequests[this.url] = undefined;
+                
+            }
         }
         if (this.method == 'POST' && this.url.indexOf('morecomments') >= 0) {
-            console.log(
+            log(
                 'morecomments ajax complete; calling loadMoreComments again',
                 ajaxDelay
             );
@@ -309,11 +377,21 @@
             setTimeout(function () {
                 loadMoreComments();
             }, ajaxDelay);
+
+            log('jcb ajax response received2', this.url);
+            if (outstandingRequests[this.url])
+            {
+                log('   jcb found callback2', this.url);
+                outstandingRequests[this.url]();
+                outstandingRequests[this.url] = undefined;
+                
+            }
+
         }
 
         if (this.method == 'POST' && this.url.indexOf('/timings/mount ') >= 0) {
             ajaxDelay += 50
-            console.log(
+            log(
                 'timing - requested too soon; increasing ajaxDelay to ',
                 ajaxDelay
             )
@@ -345,6 +423,26 @@
     proto.send = function (a, b) {
         if (!a) a = '';
         if (!b) b = '';
+
+        log('about to ajax ', JSON.stringify(arguments));
+        log(JSON.stringify(this));//__raven_xhr
+
+        if (this.__raven_xhr)
+        {
+            log('jb fonud __raven_xhr');
+            
+            log(JSON.stringify(this.__raven_xhr));//__raven_xhr.url
+            log(a,b);
+    
+            outstandingRequests[this.__raven_xhr.url] = nextRequest;
+            log('jcb setting outstandingRequests', outstandingRequests);
+            
+            nextRequest = null;
+        }
+        
+        
+        
+
         s_ajaxListener.tempSend.apply(this, arguments)
         if (s_ajaxListener.method.toLowerCase() == 'post') s_ajaxListener.data = a
         s_ajaxListener.callback();
